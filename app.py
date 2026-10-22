@@ -27,7 +27,7 @@ if uploaded_file is not None:
 
         # Anfrage an Claude 3.5 Haiku senden (garantiert für alle Accounts freigeschaltet)
         message = client.messages.create(
-            model="claude-3-5-haiku-20241022",
+            model="claude-3-5-haiku-20240307",
             max_tokens=1500,
             messages=[
                 {
