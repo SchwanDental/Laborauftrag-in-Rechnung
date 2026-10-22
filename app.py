@@ -13,7 +13,7 @@ credentials = service_account.Credentials.from_service_account_info(
 
 # 2. Vertex AI mit dem Cloud-Guthaben starten
 PROJECT_ID = "683856862514"
-LOCATION = "europe-west3"  # Serverstandort Frankfurt
+LOCATION = "us-central1"  # Serverstandort Frankfurt
 
 vertexai.init(project=PROJECT_ID, location=LOCATION, credentials=credentials)
 
