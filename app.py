@@ -1,123 +1,67 @@
-import datetime
-from io import BytesIO
-import json
-import re
+import io
 import openpyxl
-from PIL import Image
 import streamlit as st
+import vertexai
+from PIL import Image as PILImage
+from vertexai.generative_models import GenerativeModel, Image
 
-if "GEMINI_API_KEY" in st.secrets:
-  api_key = st.secrets["GEMINI_API_KEY"]
-else:
-  api_key = st.sidebar.text_input("AQ.Ab8RN6K-XiYBBX1WphYEst25KFmSw7mFeXvrjuQE-aE99Lsg4g", type="password")
+# 1. Google Cloud Vertex AI Initialisierung
+PROJECT_ID = "683856862514"
+LOCATION = "europe-west3"  # Serverstandort Frankfurt
 
-from google import genai
+vertexai.init(project=PROJECT_ID, location=LOCATION)
 
+# Modell initialisieren (nutzt stabiles Gemini 1.5 Flash über Vertex AI)
+model = GenerativeModel("gemini-1.5-flash")
+
+# --- Benutzeroberfläche (Streamlit) ---
 st.set_page_config(
-    page_title="Schwan Dental Auftragszettel", page_icon="🦷", layout="centered"
+    page_title="Dental Auftragszettel-Erfassung", page_icon="🦷", layout="centered"
 )
 
-st.title("🦷 Schwan Dental - Auftragszettel Scanner")
-st.write(
-    "Fotografiere den Zettel mit dem Handy oder lade ein Bild hoch. Die App"
-    " trägt alles in deine Excel-Vorlage ein!"
+st.title("🦷 Dental Auftragszettel-Erfassung")
+st.write("Fotografiere den Zettel oder lade das Bild hoch.")
+
+# Bild-Upload (unterstützt iPhone-Kamera direkt)
+uploaded_file = st.file_uploader(
+    "Zettel auswählen", type=["jpg", "jpeg", "png", "heic"]
 )
 
-# Sidebar für API-Key
-with st.sidebar:
-  st.header("⚙️ Einstellungen")
-  api_key = st.text_input(
-      "Google Gemini API Key",
-      type="password",
-      help=(
-          "Kostenlos erhältlich auf aistudio.google.com (wird für die"
-          " Texterkennung benötigt)"
-      ),
-  )
-  st.markdown("---")
-  st.markdown(
-      "**Ziel-Zellen:**\n- **G9:** Datum\n- **G11:** Rechnungsnr.\n- **G12:**"
-      " Patientenname\n- **G16:** XML-Nummer"
-  )
+if uploaded_file is not None:
+  # Bild anzeigen
+  image = PILImage.open(uploaded_file)
+  st.image(image, caption="Aufgenommener Zettel", use_column_width=True)
 
-# Bildaufnahme (Kamera oder Upload)
-source_option = st.radio(
-    "Bildquelle wählen:", ["Handy-Kamera", "Datei hochladen"]
-)
-uploaded_image = None
-
-if source_option == "Handy-Kamera":
-  uploaded_image = st.camera_input("Auftragszettel fotografieren")
-else:
-  uploaded_image = st.file_uploader(
-      "Bild auswählen", type=["jpg", "jpeg", "png"]
-  )
-
-if uploaded_image is not None:
-  image = Image.open(uploaded_image)
-  st.image(image, caption="Aufgenommener Zettel", use_container_width=True)
-
-  rechnung_nr = st.text_input("Rechnungsnummer (Zelle G11)", value="26.167")
-  datum_input = st.date_input("Datum (Zelle G9)", value=datetime.date.today())
-
-  if st.button("🚀 Daten auslesen & Excel befüllen", type="primary"):
-    if not api_key:
-      st.error(
-          "Bitte gib zuerst deinen Gemini API Key in der Seitenleiste ein."
-      )
-    else:
+  # Ausführen-Button
+  if st.button("🚀 Daten auslesen & Excel befüllen"):
+    try:
       with st.spinner(
-          "Analysiere Auftragszettel und befüllt Excel-Tabelle..."
+          "Analysiere Auftragszettel über Google Cloud Vertex AI..."
       ):
-        try:
-          client = genai.Client(api_key=api_key)
-          prompt = (
-              "Analysiere diesen zahntechnischen Auftragszettel. "
-              "Extrahiere zwei Werte im JSON-Format:\n"
-              '1. "patientenname": Name des Patienten\n'
-              '2. "xml_nummer": XML-Nummer bzw. Auftragsnummer (meist eine lange'
-              " Nummer mit Bindestrichen)\n"
-              "Antworte ausschließlich im JSON-Format."
-          )
+        # Bild für Vertex AI aufbereiten
+        img_byte_arr = io.BytesIO()
+        # Fallback auf JPEG, falls Format nicht erkannt wird
+        img_format = image.format if image.format else "JPEG"
+        image.save(img_byte_arr, format=img_format)
+        img_bytes = img_byte_arr.getvalue()
+        vertex_image = Image.from_bytes(img_bytes)
 
-          response = client.models.generate_content(
-              model="gemini-3.8-flash", contents=[image, prompt]
-          )
+        # Dein Auswertungs-Prompt
+        prompt = (
+            "Analysiere diesen zahntechnischen Auftragszettel sorgfältig. "
+            "Extrahiere die Rechnungsnummer (Zelle G11) und das Datum (Zelle G9) "
+            "sowie alle relevanten Positionsangaben. "
+            "Gib die Daten sauber und strukturiert aus."
+        )
 
-          cleaned = (
-              response.text.replace("```json", "")
-              .replace("```", "")
-              .strip()
-          )
-          data = json.loads(cleaned)
+        # Anfrage an Vertex AI senden
+        response = model.generate_content([vertex_image, prompt])
+        extracted_text = response.text
 
-          p_name = data.get("patientenname", "Unbekannt")
-          xml_num = data.get("xml_nummer", "")
+      # Erfolg ausgeben
+      st.success("Erfolgreich ausgelesen!")
+      st.markdown("### Extrahierte Daten:")
+      st.write(extracted_text)
 
-          # Lädt deine Excel-Vorlage aus demselben Ordner
-          wb = openpyxl.load_workbook("26.167_Rechnung.xlsx")
-          sheet = wb.active
-
-          sheet["G9"] = datum_input.strftime("%Y-%m-%d")
-          sheet["G11"] = rechnung_nr
-          sheet["G12"] = p_name
-          sheet["G16"] = xml_num
-
-          output = BytesIO()
-          wb.save(output)
-          output.seek(0)
-
-          st.success("✅ Daten erfolgreich erkannt und eingetragen!")
-          st.write(f"**Erkannter Patientenname (G12):** {p_name}")
-          st.write(f"**Erkannte XML-Nummer (G16):** {xml_num}")
-
-          st.download_button(
-              label="📥 FERTIGE EXCEL HERUNTERLADEN",
-              data=output,
-              file_name=f"Rechnung_{rechnung_nr}_{p_name}.xlsx",
-              mime=(
-                  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-              ),
-          )
-        except Exception as e:
-            st.error(f"Fehler bei der Auswertung: {e}")
+    except Exception as e:
+      st.error(f"Fehler bei der Auswertung: {e}")
