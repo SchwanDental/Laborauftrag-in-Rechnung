@@ -2,15 +2,16 @@ import base64
 import anthropic
 import streamlit as st
 
-# Streamlit UI Setup
+# Titel der Anwendung
 st.title("🦷 Dental-Auftrag Auswertung")
 
+# Dateiupload für das Bild
 uploaded_file = st.file_uploader(
     "Laborauftrag fotografieren / hochladen", type=["jpg", "jpeg", "png"]
 )
 
 if uploaded_file is not None:
-  # Bild anzeigen
+  # Das hochgeladene Bild anzeigen
   st.image(
       uploaded_file, caption="Aufgenommener Zettel", use_column_width=True
   )
@@ -22,12 +23,12 @@ if uploaded_file is not None:
         image_bytes = uploaded_file.getvalue()
         base64_image = base64.b64encode(image_bytes).decode("utf-8")
 
-        # Anthropic Client initialisieren
+        # Anthropic Client mit dem Key aus den Streamlit Secrets initialisieren
         client = anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
 
-        # Anfrage an Claude 3.5 Haiku senden (garantiert für alle Accounts freigeschaltet)
+        # Anfrage an das stabile Claude 3 Sonnet Modell senden
         message = client.messages.create(
-            model="claude-3-5-haiku-20240307",
+            model="claude-3-sonnet-20240229",
             max_tokens=1500,
             messages=[
                 {
@@ -47,8 +48,8 @@ if uploaded_file is not None:
                                 "Analysiere diesen zahnärztlichen Laborauftrag"
                                 " exakt. Extrahiere alle wichtigen Daten"
                                 " (Patientenname, Geburtsdatum, Auftragsnummer,"
-                                " Zahnstatus/Befund und geplante Arbeiten) und"
-                                " gib sie übersichtlich als strukturierte"
+                                " Zahnstatus/Befund und geplante Arbeiten)"
+                                " und gib sie übersichtlich als strukturierte"
                                 " Liste zurück."
                             ),
                         },
@@ -57,7 +58,7 @@ if uploaded_file is not None:
             ],
         )
 
-        # Ergebnis anzeigen
+        # Ergebnis auf der Oberfläche ausgeben
         result_text = message.content[0].text
         st.success("Erfolgreich ausgelesen!")
         st.markdown(result_text)
