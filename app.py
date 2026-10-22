@@ -18,7 +18,7 @@ LOCATION = "us-central1"  # Serverstandort Frankfurt
 vertexai.init(project=PROJECT_ID, location=LOCATION, credentials=credentials)
 
 # Modell initialisieren
-model = GenerativeModel("gemini-1.5-pro")
+model = GenerativeModel("gemini-1.5-pro-001")
 
 # --- Benutzeroberfläche (Streamlit) ---
 st.set_page_config(
