@@ -1,17 +1,23 @@
 import io
+from google.oauth2 import service_account
 import openpyxl
 import streamlit as st
 import vertexai
 from PIL import Image as PILImage
 from vertexai.generative_models import GenerativeModel, Image
 
-# 1. Google Cloud Vertex AI Initialisierung
+# 1. Dienstkonto-Daten sicher aus den Streamlit Secrets laden
+credentials = service_account.Credentials.from_service_account_info(
+    st.secrets["gcp_service_account"]
+)
+
+# 2. Vertex AI mit dem Cloud-Guthaben starten
 PROJECT_ID = "683856862514"
 LOCATION = "europe-west3"  # Serverstandort Frankfurt
 
-vertexai.init(project=PROJECT_ID, location=LOCATION)
+vertexai.init(project=PROJECT_ID, location=LOCATION, credentials=credentials)
 
-# Modell initialisieren (nutzt stabiles Gemini 1.5 Flash über Vertex AI)
+# Modell initialisieren
 model = GenerativeModel("gemini-1.5-flash")
 
 # --- Benutzeroberfläche (Streamlit) ---
@@ -40,7 +46,6 @@ if uploaded_file is not None:
       ):
         # Bild für Vertex AI aufbereiten
         img_byte_arr = io.BytesIO()
-        # Fallback auf JPEG, falls Format nicht erkannt wird
         img_format = image.format if image.format else "JPEG"
         image.save(img_byte_arr, format=img_format)
         img_bytes = img_byte_arr.getvalue()
