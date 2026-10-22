@@ -2,8 +2,8 @@ import base64
 import anthropic
 import streamlit as st
 
-# Streamlit UI
-st.title("🦷 Dental-Auftrag Auswertung (Claude 3.5 Sonnet)")
+# Streamlit UI Setup
+st.title("🦷 Dental-Auftrag Auswertung")
 
 uploaded_file = st.file_uploader(
     "Laborauftrag fotografieren / hochladen", type=["jpg", "jpeg", "png"]
@@ -27,7 +27,7 @@ if uploaded_file is not None:
 
         # Anfrage an Claude 3.5 Sonnet senden
         message = client.messages.create(
-            model="claude-3-5-sonnet-20241022",
+            model="claude-3-5-sonnet-20240622",
             max_tokens=1500,
             messages=[
                 {
@@ -47,9 +47,9 @@ if uploaded_file is not None:
                                 "Analysiere diesen zahnärztlichen Laborauftrag"
                                 " exakt. Extrahiere alle wichtigen Daten"
                                 " (Patientenname, Geburtsdatum, Auftragsnummer,"
-                                " Zahnstatus/Befund und geplante Arbeiten)"
-                                " und gib sie übersichtlich als strukturierte"
-                                " Liste oder Tabelle zurück."
+                                " Zahnstatus/Befund und geplante Arbeiten) und"
+                                " gib sie übersichtlich als strukturierte"
+                                " Liste zurück."
                             ),
                         },
                     ],
