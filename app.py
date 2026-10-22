@@ -5,6 +5,12 @@ import re
 import openpyxl
 from PIL import Image
 import streamlit as st
+
+if "GEMINI_API_KEY" in st.secrets:
+  api_key = st.secrets["GEMINI_API_KEY"]
+else:
+  api_key = st.sidebar.text_input("AQ.Ab8RN6K-XiYBBX1WphYEst25KFmSw7mFeXvrjuQE-aE99Lsg4g", type="password")
+
 from google import genai
 
 st.set_page_config(
