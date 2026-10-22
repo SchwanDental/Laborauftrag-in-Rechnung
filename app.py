@@ -27,7 +27,7 @@ if uploaded_file is not None:
 
         # Anfrage an Claude 3.5 Sonnet senden
         message = client.messages.create(
-            model="claude-3-5-sonnet-latest",
+            model="claude-3-5-sonnet-20241022",
             max_tokens=1500,
             messages=[
                 {
