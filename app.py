@@ -1,72 +1,66 @@
-import io
-from google.oauth2 import service_account
-import openpyxl
+import base64
+import anthropic
 import streamlit as st
-import vertexai
-from PIL import Image as PILImage
-from vertexai.generative_models import GenerativeModel, Image
 
-# 1. Dienstkonto-Daten sicher aus den Streamlit Secrets laden
-credentials = service_account.Credentials.from_service_account_info(
-    st.secrets["gcp_service_account"]
-)
+# Streamlit UI
+st.title("🦷 Dental-Auftrag Auswertung (Claude 3.5 Sonnet)")
 
-# 2. Vertex AI mit dem Cloud-Guthaben starten
-PROJECT_ID = "683856862514"
-LOCATION = "us-central1"  # Serverstandort Frankfurt
-
-vertexai.init(project=PROJECT_ID, location=LOCATION, credentials=credentials)
-
-# Modell initialisieren
-model = GenerativeModel("gemini-1.5-pro-001")
-
-# --- Benutzeroberfläche (Streamlit) ---
-st.set_page_config(
-    page_title="Dental Auftragszettel-Erfassung", page_icon="🦷", layout="centered"
-)
-
-st.title("🦷 Dental Auftragszettel-Erfassung")
-st.write("Fotografiere den Zettel oder lade das Bild hoch.")
-
-# Bild-Upload (unterstützt iPhone-Kamera direkt)
 uploaded_file = st.file_uploader(
-    "Zettel auswählen", type=["jpg", "jpeg", "png", "heic"]
+    "Laborauftrag fotografieren / hochladen", type=["jpg", "jpeg", "png"]
 )
 
 if uploaded_file is not None:
   # Bild anzeigen
-  image = PILImage.open(uploaded_file)
-  st.image(image, caption="Aufgenommener Zettel", use_column_width=True)
+  st.image(
+      uploaded_file, caption="Aufgenommener Zettel", use_column_width=True
+  )
 
-  # Ausführen-Button
   if st.button("🚀 Daten auslesen & Excel befüllen"):
-    try:
-      with st.spinner(
-          "Analysiere Auftragszettel über Google Cloud Vertex AI..."
-      ):
-        # Bild für Vertex AI aufbereiten
-        img_byte_arr = io.BytesIO()
-        img_format = image.format if image.format else "JPEG"
-        image.save(img_byte_arr, format=img_format)
-        img_bytes = img_byte_arr.getvalue()
-        vertex_image = Image.from_bytes(img_bytes)
+    with st.spinner("Claude analysiert den Zettel..."):
+      try:
+        # Bild in Base64 umwandeln
+        image_bytes = uploaded_file.getvalue()
+        base64_image = base64.b64encode(image_bytes).decode("utf-8")
 
-        # Dein Auswertungs-Prompt
-        prompt = (
-            "Analysiere diesen zahntechnischen Auftragszettel sorgfältig. "
-            "Extrahiere die Rechnungsnummer (Zelle G11) und das Datum (Zelle G9) "
-            "sowie alle relevanten Positionsangaben. "
-            "Gib die Daten sauber und strukturiert aus."
+        # Anthropic Client initialisieren
+        client = anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
+
+        # Anfrage an Claude 3.5 Sonnet senden
+        message = client.messages.create(
+            model="claude-3-5-sonnet-latest",
+            max_tokens=1500,
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "image",
+                            "source": {
+                                "type": "base64",
+                                "media_type": "image/jpeg",
+                                "data": base64_image,
+                            },
+                        },
+                        {
+                            "type": "text",
+                            "text": (
+                                "Analysiere diesen zahnärztlichen Laborauftrag"
+                                " exakt. Extrahiere alle wichtigen Daten"
+                                " (Patientenname, Geburtsdatum, Auftragsnummer,"
+                                " Zahnstatus/Befund und geplante Arbeiten)"
+                                " und gib sie übersichtlich als strukturierte"
+                                " Liste oder Tabelle zurück."
+                            ),
+                        },
+                    ],
+                }
+            ],
         )
 
-        # Anfrage an Vertex AI senden
-        response = model.generate_content([vertex_image, prompt])
-        extracted_text = response.text
+        # Ergebnis anzeigen
+        result_text = message.content[0].text
+        st.success("Erfolgreich ausgelesen!")
+        st.markdown(result_text)
 
-      # Erfolg ausgeben
-      st.success("Erfolgreich ausgelesen!")
-      st.markdown("### Extrahierte Daten:")
-      st.write(extracted_text)
-
-    except Exception as e:
-      st.error(f"Fehler bei der Auswertung: {e}")
+      except Exception as e:
+        st.error(f"Fehler bei der Auswertung: {e}")
