@@ -7,13 +7,6 @@ from PIL import Image
 import streamlit as st
 from google import genai
 
-import streamlit as st
-
-if "AQ.Ab8RN6K-XiYBBX1WphYEst25KFmSw7mFeXvrjuQE-aE99Lsg4g" in st.secrets:
-  api_key = st.secrets["GEMINI_API_KEY"]
-else:
-  api_key = st.sidebar.text_input("AQ.Ab8RN6K-XiYBBX1WphYEst25KFmSw7mFeXvrjuQE-aE99Lsg4g", type="password")
-
 st.set_page_config(
     page_title="Schwan Dental Auftragszettel", page_icon="🦷", layout="centered"
 )
