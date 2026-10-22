@@ -25,9 +25,9 @@ if uploaded_file is not None:
         # Anthropic Client initialisieren
         client = anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
 
-        # Anfrage an Claude 3.5 Sonnet senden
+        # Anfrage an Claude 3.5 Haiku senden (garantiert für alle Accounts freigeschaltet)
         message = client.messages.create(
-            model="claude-3-5-sonnet-20240622",
+            model="claude-3-5-haiku-20241022",
             max_tokens=1500,
             messages=[
                 {
