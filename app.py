@@ -26,7 +26,7 @@ if uploaded_file is not None:
         # Anthropic Client initialisieren
         client = anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
 
-        # Anfrage an das aktuelle Sonnet 5.5 Modell senden
+        # Anfrage an Claude senden
         message = client.messages.create(
             model="claude-sonnet-5-5",
             max_tokens=1500,
@@ -58,8 +58,12 @@ if uploaded_file is not None:
             ],
         )
 
-        # Ergebnis anzeigen
-        result_text = message.content[0].text
+        # Ergebnis sicher aus den Content-Blöcken extrahieren (ignoriert Thinking-Blöcke)
+        result_text = ""
+        for block in message.content:
+          if hasattr(block, "text"):
+            result_text += block.text
+
         st.success("Erfolgreich ausgelesen!")
         st.markdown(result_text)
 
