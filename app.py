@@ -4,15 +4,16 @@ import io
 import json
 import anthropic
 import openpyxl
+from openpyxl.styles import Alignment
 import streamlit as st
 
 # Titel der Anwendung
 st.title("🦷 Dental-Rechnungs-Generator")
 
-# 1. Manuelle Eingabe der Rechnungsnummer für Zelle G11
+# 1. Manuelle Eingabe der Rechnungsnummer (z.B. 191)
 st.subheader("1. Rechnungsnummer eingeben")
-rechnungsnummer = st.text_input(
-    "Rechnungsnummer (für Zelle G11):", placeholder="z. B. 2026-001"
+eingabe_nr = st.text_input(
+    "Rechnungsnummer (nur die Nummer, z. B. 191):", placeholder="191"
 )
 
 # 2. Laborauftrag fotografieren / hochladen
@@ -81,15 +82,23 @@ Antworte ausschließlich im folgenden JSON-Format (kein Markdown drumherum, nur 
         patientenname = json_data.get("patientenname", "Unbekannt")
         auftragsnummer = json_data.get("auftragsnummer", "Unbekannt")
 
+        # Rechnungsnummer zusammenbauen (z. B. 26.191 aus Eingabe 191)
+        sauber_nr = eingabe_nr.strip()
+        rechnungsnummer_voll = f"26.{sauber_nr}" if sauber_nr else "26.000"
+
         # Feste Excel-Vorlage aus dem Repository laden
         wb = openpyxl.load_workbook("Vorlage.xlsx")
         ws = wb.active  # Nimmt das aktive Tabellenblatt
 
         # Zellen exakt nach deiner Vorgabe belegen:
-        ws["G9"] = datetime.now().strftime(
-            "%d.%m.%Y"
-        )  # Aktuelles Datum in G9
-        ws["G11"] = rechnungsnummer  # Manuelle Rechnungsnummer in G11
+        ws["G9"] = datetime.now().strftime("%d.%m.%Y")
+        ws["G9"].alignment = Alignment(
+            horizontal="right"
+        )  # Datum rechtsbündig
+
+        ws["G11"] = (
+            rechnungsnummer_voll  # Rechnungsnummer (z.B. 26.191) in G11
+        )
         ws["G12"] = patientenname  # Patientenname vom Zettel in G12
         ws["G16"] = auftragsnummer  # XML-Nummer / Auftragsnummer in G16
 
@@ -100,13 +109,11 @@ Antworte ausschließlich im folgenden JSON-Format (kein Markdown drumherum, nur 
 
         st.success("Rechnung wurde erfolgreich befüllt!")
 
-        # Download-Button für die fertige Excel-Datei
+        # Download-Button mit dem gewünschten Dateinamen (z.B. 26.191_Rechnung.xlsx)
         st.download_button(
             label="📥 Befüllte Rechnung herunterladen (.xlsx)",
             data=excel_data,
-            file_name=(
-                f"Rechnung_{rechnungsnummer if rechnungsnummer else 'Entwurf'}.xlsx"
-            ),
+            file_name=f"{rechnungsnummer_voll}_Rechnung.xlsx",
             mime=(
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             ),
@@ -116,6 +123,6 @@ Antworte ausschließlich im folgenden JSON-Format (kein Markdown drumherum, nur 
         st.error(f"Fehler bei der Verarbeitung: {e}")
 else:
   st.info(
-      "💡 Gib eine Rechnungsnummer ein und lade ein Foto des Auftragszettels"
-      " hoch."
+      "💡 Gib deine Rechnungsnummer (z. B. 191) ein und lade ein Foto des"
+      " Auftragszettels hoch."
   )
