@@ -23,12 +23,12 @@ if uploaded_file is not None:
         image_bytes = uploaded_file.getvalue()
         base64_image = base64.b64encode(image_bytes).decode("utf-8")
 
-        # Anthropic Client mit dem Key aus den Streamlit Secrets initialisieren
+        # Anthropic Client initialisieren
         client = anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
 
-        # Anfrage an das stabile Claude 3 Sonnet Modell senden
+        # Anfrage an das aktuelle Sonnet 5.5 Modell senden
         message = client.messages.create(
-            model="claude-3-sonnet-20240229",
+            model="claude-sonnet-5-5",
             max_tokens=1500,
             messages=[
                 {
@@ -58,7 +58,7 @@ if uploaded_file is not None:
             ],
         )
 
-        # Ergebnis auf der Oberfläche ausgeben
+        # Ergebnis anzeigen
         result_text = message.content[0].text
         st.success("Erfolgreich ausgelesen!")
         st.markdown(result_text)
