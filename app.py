@@ -161,7 +161,7 @@ Antworte ausschließlich im folgenden JSON-Format (kein Markdown drumherum, nur 
       except Exception as e:
         st.error(f"Fehler bei der Verarbeitung: {e}")
 
-# Wenn erfolgreich gespeichert, Button für den nächsten Auftrag (Korrektur: st.session_state.get)
+# Wenn erfolgreich gespeichert, Button für den nächsten Auftrag
 if st.session_state.get("success_saved", False):
   if st.button("🔄 Nächsten Auftrag erfassen"):
     st.session_state.success_saved = False
