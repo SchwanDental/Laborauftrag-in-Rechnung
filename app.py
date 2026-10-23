@@ -11,9 +11,11 @@ import streamlit as st
 # Titel der Anwendung
 st.title("🦷 Dental-Rechnungs-Generator")
 
-# Session State für sauberes Zurücksetzen initialisieren
+# Session State initialisieren
 if "reset_trigger" not in st.session_state:
   st.session_state.reset_trigger = 0
+if "success_generated" not in st.session_state:
+  st.session_state.success_generated = False
 
 # 1. Manuelle Eingabe der Rechnungsnummer (z.B. 191)
 st.subheader("1. Rechnungsnummer eingeben")
@@ -102,7 +104,6 @@ Antworte ausschließlich im folgenden JSON-Format (kein Markdown drumherum, nur 
         ws = wb.active  # Nimmt das Tabellenblatt
 
         # Zellen exakt nach Vorgabe belegen:
-        # Aktuelles Datum in deutscher Zeitzone für Zelle G9
         deutsches_datum = (
             datetime.now(ZoneInfo("Europe/Berlin"))
             .date()
@@ -114,7 +115,7 @@ Antworte ausschließlich im folgenden JSON-Format (kein Markdown drumherum, nur 
         )  # Datum rechtsbündig
 
         ws["G11"] = rechnungsnummer_voll  # Rechnungsnummer in G11
-        ws["G12"] = patientenname  # Patientenname in G12
+        ws["G12"]  = patientenname  # Patientenname in G12
         ws["G16"] = auftragsnummer  # Auftragsnummer in G16
 
         # In den Arbeitsspeicher speichern
@@ -122,28 +123,31 @@ Antworte ausschließlich im folgenden JSON-Format (kein Markdown drumherum, nur 
         wb.save(output)
         excel_data = output.getvalue()
 
-        st.success("Rechnung wurde erfolgreich befüllt!")
-
-        # Download-Button mit dem gewünschten Dateinamen
-        st.download_button(
-            label="📥 Befüllte Rechnung herunterladen (.xlsx)",
-            data=excel_data,
-            file_name=f"{rechnungsnummer_voll}_Rechnung.xlsx",
-            mime=(
-                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            ),
-        )
+        # In Session State sichern
+        st.session_state.excel_data = excel_data
+        st.session_state.filename = f"{rechnungsnummer_voll}_Rechnung.xlsx"
+        st.session_state.success_generated = True
 
       except Exception as e:
         st.error(f"Fehler bei der Verarbeitung: {e}")
 
-  # Button zum Zurücksetzen für den nächsten Auftrag
+# Wenn die Rechnung erfolgreich generiert wurde, zeigen wir Download-Link & Reset-Button an
+if st.session_state.success_generated:
+  st.success("Rechnung wurde erfolgreich befüllt!")
+
+  # Sauberer HTML-Download-Link (umgeht das iOS-Quick-Look-Problem)
+  b64_excel = base64.b64encode(st.session_state.excel_data).decode()
+  filename = st.session_state.filename
+  href = f'<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64_excel}" download="{filename}" style="display: block; width: 100%; padding: 0.75rem; background-color: #FF4B4B; color: white; border-radius: 0.5rem; text-decoration: none; font-weight: bold; text-align: center; box-sizing: border-box; margin-bottom: 1rem;">📥 Excel-Datei herunterladen</a>'
+  st.markdown(href, unsafe_allow_html=True)
+
   st.write("")
-  if st.button("🔄 Nächsten Auftrag erfassen (Zurücksetzen)"):
+  if st.button("🔄 Nächsten Auftrag erfassen"):
+    st.session_state.success_generated = False
     st.session_state.reset_trigger += 1
     st.rerun()
 
-else:
+elif uploaded_file is None:
   st.info(
       "💡 Gib deine Rechnungsnummer (z. B. 191) ein und lade ein Foto des"
       " Auftragszettels hoch."
