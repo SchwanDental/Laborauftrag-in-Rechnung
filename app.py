@@ -29,7 +29,6 @@ def get_naechste_rechnungsnummer(ordner_pfad):
     for datei in gefundene_dateien:
       dateiname = os.path.basename(datei)
       try:
-        # z.B. "26.190_Rechnung.xlsx" -> extrahiert 190
         teil = dateiname.split("_")[0]
         nr = int(teil.split(".")[1])
         if nr > max_nr:
@@ -162,7 +161,7 @@ Antworte ausschließlich im folgenden JSON-Format (kein Markdown drumherum, nur 
       except Exception as e:
         st.error(f"Fehler bei der Verarbeitung: {e}")
 
-# Wenn erfolgreich gespeichert, Button für den nächsten Auftrag
+# Wenn erfolgreich gespeichert, Button für den nächsten Auftrag (Korrektur: st.session_state.get)
 if st.session_state.get("success_saved", False):
   if st.button("🔄 Nächsten Auftrag erfassen"):
     st.session_state.success_saved = False
