@@ -1,23 +1,42 @@
 import base64
+from datetime import datetime
+import io
+import json
 import anthropic
+import openpyxl
 import streamlit as st
 
 # Titel der Anwendung
-st.title("🦷 Dental-Auftrag Auswertung")
+st.title("🦷 Dental-Auftrag Rechnungs-Generator")
 
-# Dateiupload für das Bild
-uploaded_file = st.file_uploader(
-    "Laborauftrag fotografieren / hochladen", type=["jpg", "jpeg", "png"]
+# 1. Manuelle Eingabe der Rechnungsnummer für Zelle G11
+st.subheader("1. Rechnungsdaten eingeben")
+rechnungsnummer = st.text_input(
+    "Rechnungsnummer (für Zelle G11):", placeholder="z. B. RE-2026-001"
 )
 
-if uploaded_file is not None:
-  # Das hochgeladene Bild anzeigen
+# 2. Upload der Excel-Rechnungsvorlage
+st.subheader("2. Excel-Vorlage hochladen")
+template_file = st.file_uploader(
+    "Lade hier deine leere Excel-Rechnung (.xlsx) hoch", type=["xlsx"]
+)
+
+# 3. Upload des Laborauftrags (Foto)
+st.subheader("3. Laborauftrag fotografieren / hochladen")
+uploaded_file = st.file_uploader(
+    "Auftragszettel als Bild hochladen", type=["jpg", "jpeg", "png"]
+)
+
+# Prüfen, ob alle benötigten Daten da sind
+if uploaded_file is not None and template_file is not None:
   st.image(
       uploaded_file, caption="Aufgenommener Zettel", use_column_width=True
   )
 
-  if st.button("🚀 Daten auslesen & Excel befüllen"):
-    with st.spinner("Claude analysiert den Zettel..."):
+  if st.button("🚀 Rechnung automatisch befüllen"):
+    with st.spinner(
+        "Claude liest den Zettel aus und befüllt deine Excel-Vorlage..."
+    ):
       try:
         # Bild in Base64 umwandeln
         image_bytes = uploaded_file.getvalue()
@@ -26,7 +45,14 @@ if uploaded_file is not None:
         # Anthropic Client initialisieren
         client = anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
 
-        # Anfrage an Claude senden
+        # Prompt für Claude zur Extraktion
+        prompt_text = """Analysiere diesen zahnärztlichen Laborauftrag exakt. 
+Antworte ausschließlich im folgenden JSON-Format (kein Markdown drumherum, nur das reine JSON):
+{
+  "patientenname": "...",
+  "auftragsnummer": "..."
+}"""
+
         message = client.messages.create(
             model="claude-sonnet-5-5",
             max_tokens=1500,
@@ -42,30 +68,61 @@ if uploaded_file is not None:
                                 "data": base64_image,
                             },
                         },
-                        {
-                            "type": "text",
-                            "text": (
-                                "Analysiere diesen zahnärztlichen Laborauftrag"
-                                " exakt. Extrahiere alle wichtigen Daten"
-                                " (Patientenname, Geburtsdatum, Auftragsnummer,"
-                                " Zahnstatus/Befund und geplante Arbeiten)"
-                                " und gib sie übersichtlich als strukturierte"
-                                " Liste zurück."
-                            ),
-                        },
+                        {"type": "text", "text": prompt_text},
                     ],
                 }
             ],
         )
 
-        # Ergebnis sicher aus den Content-Blöcken extrahieren (ignoriert Thinking-Blöcke)
+        # Antwort sicher extrahieren
         result_text = ""
         for block in message.content:
           if hasattr(block, "text"):
             result_text += block.text
 
-        st.success("Erfolgreich ausgelesen!")
-        st.markdown(result_text)
+        # JSON parsen
+        json_start = result_text.find("{")
+        json_end = result_text.rfind("}") + 1
+        json_data = json.loads(result_text[json_start:json_end])
+
+        patientenname = json_data.get("patientenname", "Unbekannt")
+        auftragsnummer = json_data.get("auftragsnummer", "Unbekannt")
+
+        # Excel-Vorlage mit openpyxl öffnen
+        wb = openpyxl.load_workbook(template_file)
+        ws = wb.active  # Nimmt das aktive Tabellenblatt
+
+        # Zellen exakt nach deiner Vorgabe belegen:
+        ws["G9"] = datetime.now().strftime(
+            "%d.%m.%Y"
+        )  # Aktuelles Datum in G9
+        ws["G11"] = rechnungsnummer  # Manuelle Rechnungsnummer in G11
+        ws["G12"] = patientenname  # Patientenname vom Zettel in G12
+        ws["G16"] = auftragsnummer  # XML-Nummer / Auftragsnummer in G16
+
+        # In den Arbeitsspeicher speichern
+        output = io.BytesIO()
+        wb.save(output)
+        excel_data = output.getvalue()
+
+        st.success("Rechnung wurde erfolgreich befüllt!")
+
+        # Download-Button für die fertige Excel-Datei
+        st.download_button(
+            label="📥 Befüllte Rechnung herunterladen (.xlsx)",
+            data=excel_data,
+            file_name=(
+                f"Rechnung_{rechnungsnummer if rechnungsnummer else 'Entwurf'}.xlsx"
+            ),
+            mime=(
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            ),
+        )
 
       except Exception as e:
-        st.error(f"Fehler bei der Auswertung: {e}")
+        st.error(f"Fehler bei der Verarbeitung: {e}")
+else:
+  st.info(
+      "💡 Bitte lade sowohl deine Excel-Vorlage als auch ein Foto des"
+      " Auftragszettel hoch und gib eine Rechnungsnummer ein."
+  )
