@@ -7,35 +7,28 @@ import openpyxl
 import streamlit as st
 
 # Titel der Anwendung
-st.title("🦷 Dental-Auftrag Rechnungs-Generator")
+st.title("🦷 Dental-Rechnungs-Generator")
 
 # 1. Manuelle Eingabe der Rechnungsnummer für Zelle G11
-st.subheader("1. Rechnungsdaten eingeben")
+st.subheader("1. Rechnungsnummer eingeben")
 rechnungsnummer = st.text_input(
-    "Rechnungsnummer (für Zelle G11):", placeholder="z. B. RE-2026-001"
+    "Rechnungsnummer (für Zelle G11):", placeholder="z. B. 2026-001"
 )
 
-# 2. Upload der Excel-Rechnungsvorlage
-st.subheader("2. Excel-Vorlage hochladen")
-template_file = st.file_uploader(
-    "Lade hier deine leere Excel-Rechnung (.xlsx) hoch", type=["xlsx"]
-)
-
-# 3. Upload des Laborauftrags (Foto)
-st.subheader("3. Laborauftrag fotografieren / hochladen")
+# 2. Laborauftrag fotografieren / hochladen
+st.subheader("2. Laborauftrag fotografieren / hochladen")
 uploaded_file = st.file_uploader(
     "Auftragszettel als Bild hochladen", type=["jpg", "jpeg", "png"]
 )
 
-# Prüfen, ob alle benötigten Daten da sind
-if uploaded_file is not None and template_file is not None:
+if uploaded_file is not None:
   st.image(
       uploaded_file, caption="Aufgenommener Zettel", use_column_width=True
   )
 
   if st.button("🚀 Rechnung automatisch befüllen"):
     with st.spinner(
-        "Claude liest den Zettel aus und befüllt deine Excel-Vorlage..."
+        "Claude liest den Zettel aus und befüllt deine Vorlage..."
     ):
       try:
         # Bild in Base64 umwandeln
@@ -88,8 +81,8 @@ Antworte ausschließlich im folgenden JSON-Format (kein Markdown drumherum, nur 
         patientenname = json_data.get("patientenname", "Unbekannt")
         auftragsnummer = json_data.get("auftragsnummer", "Unbekannt")
 
-        # Excel-Vorlage mit openpyxl öffnen
-        wb = openpyxl.load_workbook(template_file)
+        # Feste Excel-Vorlage aus dem Repository laden
+        wb = openpyxl.load_workbook("Vorlage.xlsx")
         ws = wb.active  # Nimmt das aktive Tabellenblatt
 
         # Zellen exakt nach deiner Vorgabe belegen:
@@ -123,6 +116,6 @@ Antworte ausschließlich im folgenden JSON-Format (kein Markdown drumherum, nur 
         st.error(f"Fehler bei der Verarbeitung: {e}")
 else:
   st.info(
-      "💡 Bitte lade sowohl deine Excel-Vorlage als auch ein Foto des"
-      " Auftragszettel hoch und gib eine Rechnungsnummer ein."
+      "💡 Gib eine Rechnungsnummer ein und lade ein Foto des Auftragszettels"
+      " hoch."
   )
