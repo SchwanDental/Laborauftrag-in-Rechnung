@@ -2,6 +2,7 @@ import base64
 from datetime import datetime
 import io
 import json
+from zoneinfo import ZoneInfo
 import anthropic
 import openpyxl
 from openpyxl.styles import Alignment
@@ -10,16 +11,24 @@ import streamlit as st
 # Titel der Anwendung
 st.title("🦷 Dental-Rechnungs-Generator")
 
+# Session State für sauberes Zurücksetzen initialisieren
+if "reset_trigger" not in st.session_state:
+  st.session_state.reset_trigger = 0
+
 # 1. Manuelle Eingabe der Rechnungsnummer (z.B. 191)
 st.subheader("1. Rechnungsnummer eingeben")
 eingabe_nr = st.text_input(
-    "Rechnungsnummer (nur die Nummer, z. B. 191):", placeholder="191"
+    "Rechnungsnummer (nur die Nummer, z. B. 191):",
+    placeholder="191",
+    key=f"eingabe_{st.session_state.reset_trigger}",
 )
 
 # 2. Laborauftrag fotografieren / hochladen
 st.subheader("2. Laborauftrag fotografieren / hochladen")
 uploaded_file = st.file_uploader(
-    "Auftragszettel als Bild hochladen", type=["jpg", "jpeg", "png"]
+    "Auftragszettel als Bild hochladen",
+    type=["jpg", "jpeg", "png"],
+    key=f"uploader_{st.session_state.reset_trigger}",
 )
 
 if uploaded_file is not None:
@@ -39,9 +48,9 @@ if uploaded_file is not None:
         # Anthropic Client initialisieren
         client = anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
 
-        # Verbesserter, extrem präziser Prompt für Claude
+        # Präziser Prompt für Claude zur Extraktion
         prompt_text = """Analysiere diesen zahnärztlichen Laborauftrag absolut exakt. 
-WICHTIG für die Auftragsnummer: Lese die Nummer Zeichen für Zeichen direkt vom Bild ab. Erfinde keine Ziffern, füge keine zusätzlichen Zahlen ein (wie z.B. zusätzliche Einsen) und korrigiere nichts eigenmächtig. 
+WICHTIG für die Auftragsnummer: Lese die Nummer Zeichen für Zeichen direkt vom Bild ab. Erfinde keine Ziffern, füge keine zusätzlichen Zahlen ein und korrigiere nichts eigenmächtig. 
 
 Antworte ausschließlich im folgenden JSON-Format (kein Markdown drumherum, nur das reine JSON):
 {
@@ -93,7 +102,13 @@ Antworte ausschließlich im folgenden JSON-Format (kein Markdown drumherum, nur 
         ws = wb.active  # Nimmt das Tabellenblatt
 
         # Zellen exakt nach Vorgabe belegen:
-        ws["G9"] = datetime.now().strftime("%d.%m.%Y")
+        # Aktuelles Datum in deutscher Zeitzone für Zelle G9
+        deutsches_datum = (
+            datetime.now(ZoneInfo("Europe/Berlin"))
+            .date()
+            .strftime("%d.%m.%Y")
+        )
+        ws["G9"] = deutsches_datum
         ws["G9"].alignment = Alignment(
             horizontal="right"
         )  # Datum rechtsbündig
@@ -121,6 +136,13 @@ Antworte ausschließlich im folgenden JSON-Format (kein Markdown drumherum, nur 
 
       except Exception as e:
         st.error(f"Fehler bei der Verarbeitung: {e}")
+
+  # Button zum Zurücksetzen für den nächsten Auftrag
+  st.write("")
+  if st.button("🔄 Nächsten Auftrag erfassen (Zurücksetzen)"):
+    st.session_state.reset_trigger += 1
+    st.rerun()
+
 else:
   st.info(
       "💡 Gib deine Rechnungsnummer (z. B. 191) ein und lade ein Foto des"
