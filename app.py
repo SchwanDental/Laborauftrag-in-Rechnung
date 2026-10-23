@@ -39,8 +39,10 @@ if uploaded_file is not None:
         # Anthropic Client initialisieren
         client = anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
 
-        # Prompt für Claude zur Extraktion
-        prompt_text = """Analysiere diesen zahnärztlichen Laborauftrag exakt. 
+        # Verbesserter, extrem präziser Prompt für Claude
+        prompt_text = """Analysiere diesen zahnärztlichen Laborauftrag absolut exakt. 
+WICHTIG für die Auftragsnummer: Lese die Nummer Zeichen für Zeichen direkt vom Bild ab. Erfinde keine Ziffern, füge keine zusätzlichen Zahlen ein (wie z.B. zusätzliche Einsen) und korrigiere nichts eigenmächtig. 
+
 Antworte ausschließlich im folgenden JSON-Format (kein Markdown drumherum, nur das reine JSON):
 {
   "patientenname": "...",
@@ -88,19 +90,17 @@ Antworte ausschließlich im folgenden JSON-Format (kein Markdown drumherum, nur 
 
         # Feste Excel-Vorlage aus dem Repository laden
         wb = openpyxl.load_workbook("Vorlage.xlsx")
-        ws = wb.active  # Nimmt das aktive Tabellenblatt
+        ws = wb.active  # Nimmt das Tabellenblatt
 
-        # Zellen exakt nach deiner Vorgabe belegen:
+        # Zellen exakt nach Vorgabe belegen:
         ws["G9"] = datetime.now().strftime("%d.%m.%Y")
         ws["G9"].alignment = Alignment(
             horizontal="right"
         )  # Datum rechtsbündig
 
-        ws["G11"] = (
-            rechnungsnummer_voll  # Rechnungsnummer (z.B. 26.191) in G11
-        )
-        ws["G12"] = patientenname  # Patientenname vom Zettel in G12
-        ws["G16"] = auftragsnummer  # XML-Nummer / Auftragsnummer in G16
+        ws["G11"] = rechnungsnummer_voll  # Rechnungsnummer in G11
+        ws["G12"] = patientenname  # Patientenname in G12
+        ws["G16"] = auftragsnummer  # Auftragsnummer in G16
 
         # In den Arbeitsspeicher speichern
         output = io.BytesIO()
@@ -109,7 +109,7 @@ Antworte ausschließlich im folgenden JSON-Format (kein Markdown drumherum, nur 
 
         st.success("Rechnung wurde erfolgreich befüllt!")
 
-        # Download-Button mit dem gewünschten Dateinamen (z.B. 26.191_Rechnung.xlsx)
+        # Download-Button mit dem gewünschten Dateinamen
         st.download_button(
             label="📥 Befüllte Rechnung herunterladen (.xlsx)",
             data=excel_data,
